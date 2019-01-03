@@ -1,1 +1,2 @@
-python server.py
+python server.py 
+#npm --version
