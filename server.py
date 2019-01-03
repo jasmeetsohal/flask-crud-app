@@ -1,4 +1,4 @@
-from flask import Flask
+from flask import Flask , render_template
 from flask import jsonify 
 from flask import request
 from bson.json_util import dumps
@@ -9,7 +9,7 @@ from bson.objectid import ObjectId
 import pymongo
 import os
 
-app = Flask(__name__) 
+app = Flask(__name__ ,static_folder='public', template_folder='views') 
 load_dotenv()
 
 load_dotenv(verbose=True)
@@ -33,16 +33,22 @@ def db_connect():
     return False
 
 
+@app.route('/')
+def landing_page():
+  return render_template('index.html')
+
+
 
 @app.route('/create',methods=['POST'])
 def create_user():
-  user_name = request.form['username']
-  user_email = request.form['useremail']
-  db.users.insert_one({
-   'username':user_name,
-   'useremail':user_email
-  })
-  return jsonify(request.form)
+  user = {'username':request.form['username'],'useremail':request.form['useremail']}
+  print user
+  db_response = db.users.insert_one(user)
+  if db_response.inserted_id:
+    response = {"status":"insert succeed!"}
+  else:
+    response = {"status":"insertion failed"}
+  return jsonify(response),200
 
 
 @app.route('/read',methods=['GET'])
@@ -52,17 +58,24 @@ def read_user():
 
 @app.route('/update/<userId>',methods=['PUT'])
 def update_user(userId):
-  db.users.update_one({'_id':ObjectId(userId)},{'$set':{'username':request.form['username'],'useremail':request.form['useremail']}})
-  return jsonify({"status":"update succeed!"});
+  db_response = db.users.update_one({'_id':ObjectId(userId)},{'$set':{'username':request.form['username'],'useremail':request.form['useremail']}})
+  if db_response.matched_count == 1 and db_response.modified_count == 1:
+    response = {"status":"update succeed!"}
+  else:
+    response = {"status":"no record found"}
+        
+  return jsonify(response),200
 
 @app.route('/delete/<userId>',methods=['DELETE'])
 def delete_user(userId):
-  db.users.delete_one({'_id':ObjectId(userId)})
-  return jsonify({"status":"delete succeed!"})
+  db_response = db.users.delete_one({'_id':ObjectId(userId)})
+  if db_response.deleted_count == 1:
+    response = {"status":"delete succeed!"}
+  else:
+    response = {"status":"no record found"}
+    
+  return jsonify(response),200
   
-@app.route("/")
-def hello():
-    return "user"
 
 @app.route("/health-check")
 def health_check():
@@ -70,4 +83,4 @@ def health_check():
 
 if __name__ == "__main__":
     db_connect()
-    app.run()
+    app.run(debug=True)
